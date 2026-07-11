@@ -1,0 +1,11 @@
+# Ignore Virtual Environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Ignore Heavy Video Files
+*.mp4
+*.avi
+*.mkv
+
