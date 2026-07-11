@@ -19,7 +19,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from object_detector import HumanDetector
+from src.object_detector import HumanDetector
 
 st.set_page_config(
     page_title="Human Object Detection - Video Classifier",

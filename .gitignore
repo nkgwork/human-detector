@@ -4,8 +4,33 @@ venv/
 __pycache__/
 *.pyc
 
-# Ignore Heavy Video Files
+# Ignore Model Weights (large binary files, auto-downloaded on first run)
+*.pt
+*.pth
+*.onnx
+
+# Ignore Heavy Video Files (any extension, anywhere in the repo)
 *.mp4
 *.avi
 *.mkv
+*.mov
+*.webm
+*.m4v
+*.part
 
+# Ignore data/output folders explicitly (extra safety, even if extensions change)
+data/
+output/
+test_videos*/
+input_videos/
+
+# Contains hardcoded API key — never commit
+scripts/download_test_videos.py
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
