@@ -1,0 +1,16 @@
+# Custom ByteTrack config — increased track_buffer to handle brief
+# occlusions/turns better (reduces the same person being assigned a
+# new ID when they briefly disappear and reappear).
+#
+# Default track_buffer is 30 frames (~1 second at 30fps) — too short
+# for real-world footage where people turn, get occluded by others,
+# or briefly step out of frame. Increasing this gives the tracker more
+# "patience" before giving up on a lost track.
+
+tracker_type: bytetrack
+track_high_thresh: 0.5
+track_low_thresh: 0.1
+new_track_thresh: 0.6
+track_buffer: 90          # increased from default 30 — ~3 sec of "memory" at 30fps
+match_thresh: 0.8
+fuse_score: True

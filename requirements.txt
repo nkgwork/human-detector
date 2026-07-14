@@ -1,2 +1,4 @@
-ultralytics>=8.4.0
+ultralytics>=8.4.92
 opencv-python-headless>=4.9.0
+streamlit>=1.30.0
+lap>=0.5.0

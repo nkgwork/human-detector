@@ -113,6 +113,67 @@ class HumanDetector:
             "found_at_frame": found_at_frame,
         }
 
+    def count_unique_humans(self, video_path: Path):
+        """
+        Accurate mode — scans the ENTIRE video (no sampling, no early exit)
+        using YOLOv8's built-in tracking (ByteTrack) to count unique people.
+
+        Each detected person gets a persistent track ID as long as they stay
+        continuously visible. The final unique count = number of distinct
+        track IDs seen across the whole video, so a person detected multiple
+        times (e.g. in 5 frames) but who is the same individual only adds 1
+        to the count, not 5.
+
+        This is slower than classify_video() since every frame must be
+        processed for tracking continuity — that's expected and intentional
+        when accuracy matters more than speed.
+
+        LIMITATION: this counts unique TRACKS, not verified unique identities.
+        If a person leaves the frame and re-enters later, they may be counted
+        as a new person — true re-identification would need a separate Re-ID
+        model layered on top.
+        """
+        seen_track_ids = set()
+        raw_detection_count = 0
+        frame_count = 0
+        t0 = time.time()
+
+        try:
+            results = self.model.track(
+                source=str(video_path),
+                classes=[COCO_PERSON_CLASS_ID],
+                conf=self.confidence,
+                persist=True,
+                stream=True,                # memory-efficient for long videos
+                verbose=False,
+                tracker="src/custom_bytetrack.yaml",  # custom config: higher track_buffer
+                                             # to reduce ID switches from brief occlusions
+                imgsz=480,                   # smaller inference size = faster on CPU (default 640)
+            )
+
+            for r in results:
+                frame_count += 1
+                if r.boxes is not None and len(r.boxes) > 0:
+                    raw_detection_count += len(r.boxes)
+                    if r.boxes.id is not None:
+                        ids = r.boxes.id.int().tolist()
+                        seen_track_ids.update(ids)
+
+        except Exception as e:
+            return {"status": "error", "reason": str(e)}
+
+        elapsed = round(time.time() - t0, 2)
+        unique_count = len(seen_track_ids)
+
+        return {
+            "status": "ok",
+            "label": "Human" if unique_count > 0 else "Non-Human",
+            "unique_human_count": unique_count,
+            "raw_detections": raw_detection_count,
+            "frames_processed": frame_count,
+            "elapsed_sec": elapsed,
+        }
+
 
 def discover_videos(input_dir: Path):
     return sorted(
@@ -204,6 +265,14 @@ def run_single(video_path: Path, confidence: float, sample_rate: int, model_name
     return result
 
 
+def run_count(video_path: Path, confidence: float, model_name: str):
+    detector = HumanDetector(model_name=model_name, confidence=confidence)
+    log.info(f"Scanning entire video for accurate unique human count (this may take a while)...")
+    result = detector.count_unique_humans(video_path)
+    log.info(f"Result for '{video_path.name}': {result}")
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description="Classify videos as Human / Non-Human and segregate them.")
     parser.add_argument("--input", type=str, default="input_videos", help="Folder containing videos to classify")
@@ -213,9 +282,12 @@ def main():
     parser.add_argument("--move", action="store_true", help="Move files instead of copying")
     parser.add_argument("--model", type=str, default="yolov8n.pt", help="YOLO model weights (yolov8n/s/m/l/x.pt)")
     parser.add_argument("--single", type=str, default=None, help="Test a single video file (no copy/move, just prints result)")
+    parser.add_argument("--count", type=str, default=None, help="Accurate unique human count for a single video (full scan, slower)")
     args = parser.parse_args()
 
-    if args.single:
+    if args.count:
+        run_count(Path(args.count), args.confidence, args.model)
+    elif args.single:
         run_single(Path(args.single), args.confidence, args.sample_rate, args.model)
     else:
         run_batch(
